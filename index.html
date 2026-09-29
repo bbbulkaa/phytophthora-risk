@@ -9,12 +9,13 @@
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input { padding: 8px; width: 200px; }
-        button { padding: 10px 20px; background: #1565c0; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button { padding: 10px 20px; background: #1565c0; color: white; border: none; cursor: pointer; border-radius: 5px; font-size: 16px; }
         button:hover { background: #0d47a1; }
         #result { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; }
         .success { background: #e3f2fd; color: #1565c0; }
         .error { background: #ffebee; color: #c62828; }
         .warning { background: #fff3e0; color: #e65100; }
+        ul { margin: 5px 0; padding-left: 20px; }
     </style>
 </head>
 <body>
@@ -33,6 +34,71 @@
 
     <div id="result"></div>
 
-    <script src="script.js"></script>
+    <script>
+    const API_KEY = "caab2c0716cc2c51c5a8692df915ef79";
+
+    document.getElementById('checkBtn').addEventListener('click', async () => {
+        const lat = document.getElementById('latInput').value;
+        const lon = document.getElementById('lonInput').value;
+        const resultDiv = document.getElementById('result');
+
+        resultDiv.style.display = 'block';
+        resultDiv.className = '';
+        resultDiv.innerHTML = '<p>Загрузка данных...</p>';
+
+        try {
+            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ru`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.cod !== "200") {
+                resultDiv.innerHTML = `<p>Ошибка API: ${data.message}</p>`;
+                resultDiv.className = 'error';
+                return;
+            }
+
+            const dailySuitable = {};
+            data.list.forEach(item => {
+                const date = item.dt_txt.split(' ')[0];
+                if (item.main.temp >= 10 && item.main.humidity >= 90) {
+                    dailySuitable[date] = (dailySuitable[date] || 0) + 3;
+                } else {
+                    dailySuitable[date] = dailySuitable[date] || 0;
+                }
+            });
+
+            const dates = Object.keys(dailySuitable).sort();
+            let risk = false;
+            let riskPair = null;
+
+            for (let i = 0; i < dates.length - 1; i++) {
+                if (dailySuitable[dates[i]] >= 11 && dailySuitable[dates[i+1]] >= 10) {
+                    risk = true;
+                    riskPair = [dates[i], dates[i+1]];
+                    break;
+                }
+            }
+
+            if (risk) {
+                resultDiv.innerHTML = `<p><b>ВЫСОКИЙ РИСК фитофтороза.</b></p>
+                <p>Обнаружен Smith Period: ${riskPair[0]} → ${riskPair[1]}.</p>
+                <p>Рекомендуется профилактическая обработка в течение 24–48 часов.</p>`;
+                resultDiv.className = 'warning';
+            } else {
+                let html = '<p><b>Риск фитофтороза НИЗКИЙ.</b></p>';
+                html += '<p>Условия по дням (часы с влажностью ≥90% и t ≥10°C):</p><ul>';
+                dates.forEach(d => {
+                    html += `<li>${d}: ${dailySuitable[d]} ч</li>`;
+                });
+                html += '</ul><p>Порог Smith Period: 11 ч (день 1) + 10 ч (день 2).</p>';
+                resultDiv.innerHTML = html;
+                resultDiv.className = 'success';
+            }
+        } catch (err) {
+            resultDiv.innerHTML = `<p>Ошибка: ${err.message}</p>`;
+            resultDiv.className = 'error';
+        }
+    });
+    </script>
 </body>
 </html>
