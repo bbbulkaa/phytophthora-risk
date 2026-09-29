@@ -283,7 +283,7 @@
 
         try {
             // Open-Meteo: почасовые данные, без ключа
-            const url = `https://phytophthora-risk.bulkagubajdullin.workers.dev/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m&forecast_days=5&timezone=auto`;
+            const url = `https://soft-water-96be.bulkagubajdullin.workers.dev/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m&forecast_days=5&timezone=auto`;
             const response = await fetch(url);
             const data = await response.json();
 
