@@ -31,15 +31,8 @@
             padding: 30px 40px;
         }
 
-        header h1 {
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-
-        header p {
-            opacity: 0.9;
-            font-size: 15px;
-        }
+        header h1 { font-size: 28px; margin-bottom: 8px; }
+        header p { opacity: 0.9; font-size: 15px; }
 
         .content {
             display: grid;
@@ -51,13 +44,8 @@
             .content { grid-template-columns: 1fr; }
         }
 
-        .panel {
-            padding: 30px 40px;
-        }
-
-        .panel-left {
-            border-right: 1px solid #e0e0e0;
-        }
+        .panel { padding: 30px 40px; }
+        .panel-left { border-right: 1px solid #e0e0e0; }
 
         @media (max-width: 800px) {
             .panel-left { border-right: none; border-bottom: 1px solid #e0e0e0; }
@@ -69,9 +57,7 @@
             color: #2e7d32;
         }
 
-        .input-group {
-            margin-bottom: 15px;
-        }
+        .input-group { margin-bottom: 15px; }
 
         .input-group label {
             display: block;
@@ -91,9 +77,7 @@
             outline: none;
         }
 
-        .input-group input:focus {
-            border-color: #4caf50;
-        }
+        .input-group input:focus { border-color: #4caf50; }
 
         .input-row {
             display: grid;
@@ -118,10 +102,6 @@
         button:hover {
             box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
             transform: translateY(-1px);
-        }
-
-        button:active {
-            transform: translateY(0);
         }
 
         button:disabled {
@@ -155,19 +135,9 @@
             line-height: 1.6;
         }
 
-        #result h3 {
-            font-size: 18px;
-            margin-bottom: 12px;
-        }
-
-        #result ul {
-            margin: 10px 0;
-            padding-left: 22px;
-        }
-
-        #result li {
-            margin-bottom: 4px;
-        }
+        #result h3 { font-size: 18px; margin-bottom: 12px; }
+        #result ul { margin: 10px 0; padding-left: 22px; }
+        #result li { margin-bottom: 4px; }
 
         .success { background: #e8f5e9; color: #1b5e20; border-left: 5px solid #4caf50; }
         .warning { background: #fff8e1; color: #e65100; border-left: 5px solid #ff9800; }
@@ -223,7 +193,7 @@
     <div class="container">
         <header>
             <h1>🍅 Прогноз риска фитофтороза</h1>
-            <p>Система предупреждения до заражения — по модели Smith Period и данным OpenWeatherMap</p>
+            <p>Система предупреждения до заражения — по модели Smith Period и данным Open-Meteo</p>
         </header>
 
         <div class="content">
@@ -260,14 +230,9 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-    // ================== API КЛЮЧ ==================
-    const API_KEY = "caab2c0716cc2c51c5a8692df915ef79";
-    // ==============================================
-
     // ---------- КАРТА ----------
     const map = L.map('map').setView([55.79, 49.12], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
         maxZoom: 18
     }).addTo(map);
 
@@ -291,7 +256,7 @@
         }
     }
 
-    // ---------- ПРОВЕРКА РИСКА ----------
+    // ---------- ПРОВЕРКА РИСКА (Open-Meteo) ----------
     document.getElementById('checkBtn').addEventListener('click', async () => {
         const lat = document.getElementById('latInput').value;
         const lon = document.getElementById('lonInput').value;
@@ -309,29 +274,34 @@
         placeholder.style.display = 'none';
         resultDiv.style.display = 'block';
         resultDiv.className = '';
-        resultDiv.innerHTML = '<p>⏳ Загрузка данных с OpenWeatherMap...</p>';
+        resultDiv.innerHTML = '<p>⏳ Загрузка данных с Open-Meteo...</p>';
         btn.disabled = true;
 
         try {
-            const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ru`;
+            // Open-Meteo: почасовые данные, без ключа
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m&forecast_days=5&timezone=auto`;
             const response = await fetch(url);
             const data = await response.json();
 
-            if (data.cod !== "200") {
+            if (!data.hourly || !data.hourly.time) {
                 resultDiv.className = 'error';
-                resultDiv.innerHTML = `<p>Ошибка API: ${data.message}</p>`;
+                resultDiv.innerHTML = '<p>Не удалось получить данные о погоде.</p>';
                 return;
             }
 
+            const times = data.hourly.time;
+            const temps = data.hourly.temperature_2m;
+            const hums = data.hourly.relative_humidity_2m;
+
             // Группируем по дням: считаем часы с влажностью ≥90% и t ≥10°C
             const dailySuitable = {};
-            data.list.forEach(item => {
-                const date = item.dt_txt.split(' ')[0];
+            for (let i = 0; i < times.length; i++) {
+                const date = times[i].split('T')[0];
                 if (!dailySuitable[date]) dailySuitable[date] = 0;
-                if (item.main.temp >= 10 && item.main.humidity >= 90) {
-                    dailySuitable[date] += 3; // шаг прогноза = 3 часа
+                if (temps[i] >= 10 && hums[i] >= 90) {
+                    dailySuitable[date] += 1; // шаг = 1 час
                 }
-            });
+            }
 
             const dates = Object.keys(dailySuitable).sort();
             let riskLevel = 'low';
@@ -346,7 +316,6 @@
                     riskPair = [dates[i], dates[i + 1]];
                     break;
                 }
-                // промежуточный уровень: близко к порогу
                 if (riskLevel !== 'high' && (h1 >= 8 && h2 >= 7)) {
                     riskLevel = 'medium';
                 }
@@ -354,29 +323,28 @@
 
             // ---------- ВЫВОД ----------
             let html = '';
-            const city = data.city ? data.city.name : 'выбранная точка';
+            const city = `${parseFloat(lat).toFixed(3)}, ${parseFloat(lon).toFixed(3)}`;
 
             if (riskLevel === 'high') {
                 html += `<span class="risk-badge badge-high">🔴 ВЫСОКИЙ РИСК</span>`;
                 html += `<h3>Обнаружен Smith Period</h3>`;
-                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
+                html += `<p>Точка: <b>${city}</b></p>`;
                 html += `<p>Период риска: <b>${riskPair[0]}</b> → <b>${riskPair[1]}</b></p>`;
                 html += `<p>Рекомендуется <b>профилактическая обработка</b> в течение 24–48 часов.</p>`;
                 resultDiv.className = 'danger';
             } else if (riskLevel === 'medium') {
                 html += `<span class="risk-badge badge-medium">🟡 СРЕДНИЙ РИСК</span>`;
                 html += `<h3>Условия близки к пороговым</h3>`;
-                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
+                html += `<p>Точка: <b>${city}</b></p>`;
                 html += `<p>Рекомендуется усилить мониторинг поля и подготовиться к обработке.</p>`;
                 resultDiv.className = 'warning';
             } else {
                 html += `<span class="risk-badge badge-low">🟢 НИЗКИЙ РИСК</span>`;
                 html += `<h3>Условия для фитофтороза не сложились</h3>`;
-                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
+                html += `<p>Точка: <b>${city}</b></p>`;
                 resultDiv.className = 'success';
             }
 
-            // Статистика по дням с прогресс-барами
             html += `<p style="margin-top:15px;"><b>Условия по дням</b> (часы с влажностью ≥90% и t ≥10°C):</p>`;
             dates.forEach(d => {
                 const hours = dailySuitable[d];
@@ -406,7 +374,7 @@
         }
     });
 
-    // Автоматическая проверка при загрузке
+    // Автозапуск при загрузке
     document.getElementById('checkBtn').click();
     </script>
 </body>
