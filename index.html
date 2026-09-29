@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз фитофтороза</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { padding: 8px; width: 200px; }
+        button { padding: 10px 20px; background: #1565c0; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        button:hover { background: #0d47a1; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; }
+        .success { background: #e3f2fd; color: #1565c0; }
+        .error { background: #ffebee; color: #c62828; }
+        .warning { background: #fff3e0; color: #e65100; }
+    </style>
+</head>
+<body>
+    <h1>Прогноз риска фитофтороза</h1>
+    <p>Введите координаты поля:</p>
+
+    <div class="input-group">
+        <label>Широта (Latitude):</label>
+        <input type="number" id="latInput" value="55.79" step="0.01">
+    </div>
+    <div class="input-group">
+        <label>Долгота (Longitude):</label>
+        <input type="number" id="lonInput" value="49.12" step="0.01">
+    </div>
+    <button id="checkBtn">Проверить риск</button>
+
+    <div id="result"></div>
+</body>
+</html>
