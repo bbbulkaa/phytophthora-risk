@@ -3,48 +3,314 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Прогноз фитофтороза</title>
+    <title>Прогноз риска фитофтороза</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { padding: 8px; width: 200px; }
-        button { padding: 10px 20px; background: #1565c0; color: white; border: none; cursor: pointer; border-radius: 5px; font-size: 16px; }
-        button:hover { background: #0d47a1; }
-        #result { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; }
-        .success { background: #e3f2fd; color: #1565c0; }
-        .error { background: #ffebee; color: #c62828; }
-        .warning { background: #fff3e0; color: #e65100; }
-        ul { margin: 5px 0; padding-left: 20px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1b5e20;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(27, 94, 32, 0.15);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            color: white;
+            padding: 30px 40px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 15px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+
+        @media (max-width: 800px) {
+            .content { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            padding: 30px 40px;
+        }
+
+        .panel-left {
+            border-right: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 800px) {
+            .panel-left { border-right: none; border-bottom: 1px solid #e0e0e0; }
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2e7d32;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #33691e;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #c8e6c9;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #4caf50;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #a5d6a7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #map {
+            height: 320px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #c8e6c9;
+            z-index: 1;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: #558b2f;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        #result h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        #result ul {
+            margin: 10px 0;
+            padding-left: 22px;
+        }
+
+        #result li {
+            margin-bottom: 4px;
+        }
+
+        .success { background: #e8f5e9; color: #1b5e20; border-left: 5px solid #4caf50; }
+        .warning { background: #fff8e1; color: #e65100; border-left: 5px solid #ff9800; }
+        .danger  { background: #ffebee; color: #b71c1c; border-left: 5px solid #f44336; }
+        .error   { background: #ffebee; color: #c62828; border-left: 5px solid #f44336; }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-low    { background: #4caf50; color: white; }
+        .badge-medium { background: #ff9800; color: white; }
+        .badge-high   { background: #f44336; color: white; }
+
+        .bar-container {
+            background: #e0e0e0;
+            border-radius: 6px;
+            height: 22px;
+            margin: 6px 0;
+            overflow: hidden;
+        }
+
+        .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #66bb6a, #43a047);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+            transition: width 0.5s;
+        }
+
+        .bar-high { background: linear-gradient(90deg, #ef5350, #e53935); }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+            color: #558b2f;
+            background: #f1f8e9;
+        }
     </style>
 </head>
 <body>
-    <h1>Прогноз риска фитофтороза</h1>
-    <p>Введите координаты поля:</p>
+    <div class="container">
+        <header>
+            <h1>🍅 Прогноз риска фитофтороза</h1>
+            <p>Система предупреждения до заражения — по модели Smith Period и данным OpenWeatherMap</p>
+        </header>
 
-    <div class="input-group">
-        <label>Широта (Latitude):</label>
-        <input type="number" id="latInput" value="55.79" step="0.01">
+        <div class="content">
+            <div class="panel panel-left">
+                <h2>📍 Выбор точки на карте</h2>
+                <p class="hint">Кликните на карту, чтобы подставить координаты автоматически.</p>
+                <div id="map"></div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Широта</label>
+                        <input type="number" id="latInput" value="55.79" step="0.0001">
+                    </div>
+                    <div class="input-group">
+                        <label>Долгота</label>
+                        <input type="number" id="lonInput" value="49.12" step="0.0001">
+                    </div>
+                </div>
+
+                <button id="checkBtn">Проверить риск</button>
+            </div>
+
+            <div class="panel">
+                <h2>📊 Результат анализа</h2>
+                <div id="result"></div>
+                <p class="hint" id="placeholder">Введите координаты или кликните на карту и нажмите «Проверить риск».</p>
+            </div>
+        </div>
+
+        <footer>
+            Республиканский конкурс «Инновация года» · Номинация «Перспектива» · 2026
+        </footer>
     </div>
-    <div class="input-group">
-        <label>Долгота (Longitude):</label>
-        <input type="number" id="lonInput" value="49.12" step="0.01">
-    </div>
-    <button id="checkBtn">Проверить риск</button>
 
-    <div id="result"></div>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+    // ================== API КЛЮЧ ==================
     const API_KEY = "caab2c0716cc2c51c5a8692df915ef79";
+    // ==============================================
 
+    // ---------- КАРТА ----------
+    const map = L.map('map').setView([55.79, 49.12], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 18
+    }).addTo(map);
+
+    let marker = L.marker([55.79, 49.12]).addTo(map);
+
+    map.on('click', function(e) {
+        const { lat, lng } = e.latlng;
+        document.getElementById('latInput').value = lat.toFixed(4);
+        document.getElementById('lonInput').value = lng.toFixed(4);
+        marker.setLatLng([lat, lng]);
+    });
+
+    document.getElementById('latInput').addEventListener('change', updateMarker);
+    document.getElementById('lonInput').addEventListener('change', updateMarker);
+
+    function updateMarker() {
+        const lat = parseFloat(document.getElementById('latInput').value);
+        const lon = parseFloat(document.getElementById('lonInput').value);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            marker.setLatLng([lat, lon]);
+        }
+    }
+
+    // ---------- ПРОВЕРКА РИСКА ----------
     document.getElementById('checkBtn').addEventListener('click', async () => {
         const lat = document.getElementById('latInput').value;
         const lon = document.getElementById('lonInput').value;
         const resultDiv = document.getElementById('result');
+        const placeholder = document.getElementById('placeholder');
+        const btn = document.getElementById('checkBtn');
 
+        if (!lat || !lon) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'error';
+            resultDiv.innerHTML = '<p>Введите координаты поля.</p>';
+            return;
+        }
+
+        placeholder.style.display = 'none';
         resultDiv.style.display = 'block';
         resultDiv.className = '';
-        resultDiv.innerHTML = '<p>Загрузка данных...</p>';
+        resultDiv.innerHTML = '<p>⏳ Загрузка данных с OpenWeatherMap...</p>';
+        btn.disabled = true;
 
         try {
             const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ru`;
@@ -52,53 +318,96 @@
             const data = await response.json();
 
             if (data.cod !== "200") {
-                resultDiv.innerHTML = `<p>Ошибка API: ${data.message}</p>`;
                 resultDiv.className = 'error';
+                resultDiv.innerHTML = `<p>Ошибка API: ${data.message}</p>`;
                 return;
             }
 
+            // Группируем по дням: считаем часы с влажностью ≥90% и t ≥10°C
             const dailySuitable = {};
             data.list.forEach(item => {
                 const date = item.dt_txt.split(' ')[0];
+                if (!dailySuitable[date]) dailySuitable[date] = 0;
                 if (item.main.temp >= 10 && item.main.humidity >= 90) {
-                    dailySuitable[date] = (dailySuitable[date] || 0) + 3;
-                } else {
-                    dailySuitable[date] = dailySuitable[date] || 0;
+                    dailySuitable[date] += 3; // шаг прогноза = 3 часа
                 }
             });
 
             const dates = Object.keys(dailySuitable).sort();
-            let risk = false;
+            let riskLevel = 'low';
             let riskPair = null;
 
             for (let i = 0; i < dates.length - 1; i++) {
-                if (dailySuitable[dates[i]] >= 11 && dailySuitable[dates[i+1]] >= 10) {
-                    risk = true;
-                    riskPair = [dates[i], dates[i+1]];
+                const h1 = dailySuitable[dates[i]];
+                const h2 = dailySuitable[dates[i + 1]];
+
+                if (h1 >= 11 && h2 >= 10) {
+                    riskLevel = 'high';
+                    riskPair = [dates[i], dates[i + 1]];
                     break;
+                }
+                // промежуточный уровень: близко к порогу
+                if (riskLevel !== 'high' && (h1 >= 8 && h2 >= 7)) {
+                    riskLevel = 'medium';
                 }
             }
 
-            if (risk) {
-                resultDiv.innerHTML = `<p><b>ВЫСОКИЙ РИСК фитофтороза.</b></p>
-                <p>Обнаружен Smith Period: ${riskPair[0]} → ${riskPair[1]}.</p>
-                <p>Рекомендуется профилактическая обработка в течение 24–48 часов.</p>`;
+            // ---------- ВЫВОД ----------
+            let html = '';
+            const city = data.city ? data.city.name : 'выбранная точка';
+
+            if (riskLevel === 'high') {
+                html += `<span class="risk-badge badge-high">🔴 ВЫСОКИЙ РИСК</span>`;
+                html += `<h3>Обнаружен Smith Period</h3>`;
+                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
+                html += `<p>Период риска: <b>${riskPair[0]}</b> → <b>${riskPair[1]}</b></p>`;
+                html += `<p>Рекомендуется <b>профилактическая обработка</b> в течение 24–48 часов.</p>`;
+                resultDiv.className = 'danger';
+            } else if (riskLevel === 'medium') {
+                html += `<span class="risk-badge badge-medium">🟡 СРЕДНИЙ РИСК</span>`;
+                html += `<h3>Условия близки к пороговым</h3>`;
+                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
+                html += `<p>Рекомендуется усилить мониторинг поля и подготовиться к обработке.</p>`;
                 resultDiv.className = 'warning';
             } else {
-                let html = '<p><b>Риск фитофтороза НИЗКИЙ.</b></p>';
-                html += '<p>Условия по дням (часы с влажностью ≥90% и t ≥10°C):</p><ul>';
-                dates.forEach(d => {
-                    html += `<li>${d}: ${dailySuitable[d]} ч</li>`;
-                });
-                html += '</ul><p>Порог Smith Period: 11 ч (день 1) + 10 ч (день 2).</p>';
-                resultDiv.innerHTML = html;
+                html += `<span class="risk-badge badge-low">🟢 НИЗКИЙ РИСК</span>`;
+                html += `<h3>Условия для фитофтороза не сложились</h3>`;
+                html += `<p>Точка: <b>${city}</b> (${lat}, ${lon})</p>`;
                 resultDiv.className = 'success';
             }
+
+            // Статистика по дням с прогресс-барами
+            html += `<p style="margin-top:15px;"><b>Условия по дням</b> (часы с влажностью ≥90% и t ≥10°C):</p>`;
+            dates.forEach(d => {
+                const hours = dailySuitable[d];
+                const percent = Math.min(100, (hours / 11) * 100);
+                const barClass = hours >= 11 ? 'bar bar-high' : 'bar';
+                html += `
+                    <div style="margin-bottom:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:13px;">
+                            <span>${d}</span>
+                            <span><b>${hours} ч</b></span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="${barClass}" style="width:${percent}%;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `<p style="margin-top:10px; font-size:13px;">Порог Smith Period: <b>11 ч</b> (день 1) + <b>10 ч</b> (день 2).</p>`;
+
+            resultDiv.innerHTML = html;
+
         } catch (err) {
-            resultDiv.innerHTML = `<p>Ошибка: ${err.message}</p>`;
             resultDiv.className = 'error';
+            resultDiv.innerHTML = `<p>Ошибка: ${err.message}</p>`;
+        } finally {
+            btn.disabled = false;
         }
     });
+
+    // Автоматическая проверка при загрузке
+    document.getElementById('checkBtn').click();
     </script>
 </body>
 </html>
